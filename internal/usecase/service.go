@@ -3,6 +3,7 @@ package usecase
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"time"
 
 	"github.com/google/uuid"
@@ -21,9 +22,11 @@ func NewURLService(repo URLRepository, shortener Shortener) *URLService {
 
 // CreateShortURL validates the original URL, generates a short code, and persists the mapping.
 func (s *URLService) CreateShortURL(ctx context.Context, original string) (string, error) {
-    if original == "" {
-        return "", domain.ErrInvalidURL
-    }
+	parsed, err := url.Parse(original)
+	if err != nil || parsed.Scheme == "" || parsed.Host == "" ||
+		(parsed.Scheme != "http" && parsed.Scheme != "https") {
+		return "", domain.ErrInvalidURL
+	}
     code, err := s.shortener.Generate(ctx, original)
     if err != nil {
         return "", fmt.Errorf("shortener generate: %w", err)
@@ -43,14 +46,11 @@ func (s *URLService) CreateShortURL(ctx context.Context, original string) (strin
 
 // ResolveURL fetches the original URL for a given short code.
 func (s *URLService) ResolveURL(ctx context.Context, code string) (string, error) {
-    url, err := s.repo.FindByShortCode(ctx, code)
-    if err != nil {
-        return "", fmt.Errorf("repo find: %w", err)
-    }
-    if url == nil {
-        return "", domain.ErrNotFound
-    }
-    return url.Original, nil
+	url, err := s.repo.FindByShortCode(ctx, code)
+	if err != nil {
+		return "", fmt.Errorf("repo find: %w", err)
+	}
+	return url.Original, nil
 }
 
 // UpdateURL allows updating the original URL for an existing short code.
