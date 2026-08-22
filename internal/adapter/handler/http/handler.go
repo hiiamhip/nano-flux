@@ -65,6 +65,52 @@ func (h *Handler) Resolve(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, original, http.StatusFound)
 }
 
+type updateRequest struct {
+	URL string `json:"url"`
+}
+
+func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+
+	var req updateRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		httpError(w, http.StatusBadRequest, "invalid json body")
+		return
+	}
+
+	err := h.svc.UpdateURL(r.Context(), id, req.URL)
+	if err != nil {
+		switch {
+		case errors.Is(err, domain.ErrNotFound):
+			httpError(w, http.StatusNotFound, "url not found")
+		case errors.Is(err, domain.ErrInvalidURL):
+			httpError(w, http.StatusBadRequest, "invalid url")
+		default:
+			httpError(w, http.StatusInternalServerError, "internal error")
+		}
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]string{"status": "updated"})
+}
+
+func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+
+	err := h.svc.DeleteURL(r.Context(), id)
+	if err != nil {
+		switch {
+		case errors.Is(err, domain.ErrNotFound):
+			httpError(w, http.StatusNotFound, "url not found")
+		default:
+			httpError(w, http.StatusInternalServerError, "internal error")
+		}
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func writeJSON(w http.ResponseWriter, status int, value any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
