@@ -8,7 +8,9 @@ import (
 
 	httpapi "github.com/hiiamhip/nanoflux/internal/adapter/handler/http"
 	"github.com/hiiamhip/nanoflux/internal/adapter/repository/postgres"
+	"github.com/hiiamhip/nanoflux/internal/adapter/shortener"
 	"github.com/hiiamhip/nanoflux/internal/config"
+	"github.com/hiiamhip/nanoflux/internal/usecase"
 )
 
 func main() {
@@ -25,7 +27,17 @@ func main() {
 	}
 	defer pool.Close()
 
-	h := httpapi.NewHandler()
+	// adapter
+	repo := postgres.NewPostgresRepo(pool)
+	gen := shortener.NewBase62()
+
+	// usecase
+	svc := usecase.NewURLService(repo, gen)
+
+	// handler
+	h := httpapi.NewHandler(svc)
+
+	// router
 	r := httpapi.NewRouter(h)
 
 	srv := &http.Server{
