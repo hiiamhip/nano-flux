@@ -5,6 +5,8 @@ import (
 	"errors"
 	"net/http"
 
+	"github.com/go-chi/chi/v5"
+
 	"github.com/hiiamhip/nanoflux/internal/domain"
 	"github.com/hiiamhip/nanoflux/internal/usecase"
 )
@@ -44,6 +46,23 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusCreated, createResponse{Code: code})
+}
+
+func (h *Handler) Resolve(w http.ResponseWriter, r *http.Request) {
+	code := chi.URLParam(r, "code")
+
+	original, err := h.svc.ResolveURL(r.Context(), code)
+	if err != nil {
+		switch {
+		case errors.Is(err, domain.ErrNotFound):
+			httpError(w, http.StatusNotFound, "url not found")
+		default:
+			httpError(w, http.StatusInternalServerError, "internal error")
+		}
+		return
+	}
+
+	http.Redirect(w, r, original, http.StatusFound)
 }
 
 func writeJSON(w http.ResponseWriter, status int, value any) {
