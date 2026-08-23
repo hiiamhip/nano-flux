@@ -5,6 +5,10 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	httpapi "github.com/hiiamhip/nanoflux/internal/adapter/handler/http"
 	"github.com/hiiamhip/nanoflux/internal/adapter/repository/postgres"
@@ -25,7 +29,6 @@ func main() {
 	if err != nil {
 		log.Fatalf("connect db: %v", err)
 	}
-	defer pool.Close()
 
 	// adapter
 	repo := postgres.NewPostgresRepo(pool)
@@ -40,13 +43,34 @@ func main() {
 	// router
 	r := httpapi.NewRouter(h)
 
-	srv := &http.Server{
+	server := &http.Server{
 		Addr:    ":" + cfg.Port,
 		Handler: r,
 	}
 
-	log.Printf("listening on :%s", srv.Addr)
-	if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-		log.Fatalf("server: %v", err)
+	// Start server in goroutine
+	go func() {
+		log.Printf("listening on :%s", server.Addr)
+		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			log.Fatalf("server: %v", err)
+		}
+	}()
+
+	// Wait for interrupt signal
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGTERM, syscall.SIGINT)
+	<-quit
+	log.Println("shutdown signal received")
+
+	// Graceful shutdown with timeout
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	if err := server.Shutdown(shutdownCtx); err != nil {
+		log.Fatalf("server forced to shutdown: %v", err)
 	}
+
+	// Close DB pool
+	pool.Close()
+	log.Println("server exited gracefully")
 }
