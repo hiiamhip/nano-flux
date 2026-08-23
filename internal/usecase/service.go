@@ -21,6 +21,7 @@ func NewURLService(repo URLRepository, shortener Shortener) *URLService {
 }
 
 // CreateShortURL validates the original URL, generates a short code, and persists the mapping.
+// If URL already exists, returns existing short code (upsert).
 func (s *URLService) CreateShortURL(ctx context.Context, original string) (string, error) {
 	parsed, err := url.Parse(original)
 	if err != nil || parsed.Scheme == "" || parsed.Host == "" ||
@@ -38,10 +39,7 @@ func (s *URLService) CreateShortURL(ctx context.Context, original string) (strin
         CreatedAt: time.Now().Unix(),
         UpdatedAt: time.Now().Unix(),
     }
-    if err := s.repo.Create(ctx, url); err != nil {
-        return "", fmt.Errorf("repo create: %w", err)
-    }
-    return code, nil
+    return s.repo.Create(ctx, url)
 }
 
 // ResolveURL fetches the original URL for a given short code.
