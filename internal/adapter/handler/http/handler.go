@@ -1,6 +1,7 @@
 package http
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -8,14 +9,20 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"github.com/hiiamhip/nanoflux/internal/domain"
-	"github.com/hiiamhip/nanoflux/internal/usecase"
 )
 
-type Handler struct {
-	svc *usecase.URLService
+type URLService interface {
+	CreateShortURL(ctx context.Context, original string) (string, error)
+	ResolveURL(ctx context.Context, code string) (string, error)
+	UpdateURL(ctx context.Context, id, newOriginal string) error
+	DeleteURL(ctx context.Context, id string) error
 }
 
-func NewHandler(svc *usecase.URLService) *Handler {
+type Handler struct {
+	svc URLService
+}
+
+func NewHandler(svc URLService) *Handler {
 	return &Handler{svc: svc}
 }
 
