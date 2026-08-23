@@ -19,15 +19,18 @@ func NewPostgresRepo(pool *pgxpool.Pool) *postgresRepo {
 	return &postgresRepo{db: pool}
 }
 
-func (r *postgresRepo) Create(ctx context.Context, url *domain.URL) error {
-	_, err := r.db.Exec(ctx,
-		`INSERT INTO urls (id, original, short_code, created_at, updated_at) VALUES ($1,$2,$3,$4,$5)`,
+func (r *postgresRepo) Create(ctx context.Context, url *domain.URL) (string, error) {
+	var shortCode string
+	err := r.db.QueryRow(ctx,
+		`INSERT INTO urls (id, original, short_code, created_at, updated_at) VALUES ($1,$2,$3,$4,$5)
+		 ON CONFLICT (original) DO UPDATE SET short_code = urls.short_code
+		 RETURNING short_code`,
 		url.ID, url.Original, url.ShortCode, url.CreatedAt, url.UpdatedAt,
-	)
+	).Scan(&shortCode)
 	if err != nil {
-		return fmt.Errorf("exec insert: %w", err)
+		return "", fmt.Errorf("exec insert: %w", err)
 	}
-	return nil
+	return shortCode, nil
 }
 
 func (r *postgresRepo) FindByShortCode(ctx context.Context, code string) (*domain.URL, error) {
