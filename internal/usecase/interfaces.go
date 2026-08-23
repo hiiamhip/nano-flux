@@ -8,7 +8,7 @@ import (
 
 
 type URLRepository interface {
-    Create(ctx context.Context, url *domain.URL) error
+    Create(ctx context.Context, url *domain.URL) (string, error)
 
     FindByShortCode(ctx context.Context, code string) (*domain.URL, error)
 
