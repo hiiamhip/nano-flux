@@ -21,6 +21,12 @@ func NewRouter(h *Handler) *chi.Mux {
 	r.Get("/{code}", h.Resolve)
 	r.Put("/api/urls/{id}", h.Update)
 	r.Delete("/api/urls/{id}", h.Delete)
+
+	// Swagger documentation routes
+	r.Get("/swagger/openapi.yaml", SwaggerSpec)
+	r.Get("/swagger", SwaggerUI)
+	r.Get("/swagger/", SwaggerUI)
+
 	return r
 }
 
