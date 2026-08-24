@@ -1,0 +1,171 @@
+openapi: 3.0.3
+info:
+  title: NanoFlux URL Shortener API
+  description: High-performance, clean architecture URL Shortener API in Go.
+  version: 1.0.0
+servers:
+  - url: http://localhost:8080
+    description: Local development server
+paths:
+  /api/urls:
+    post:
+      summary: Create a short URL
+      operationId: createShortURL
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - url
+              properties:
+                url:
+                  type: string
+                  format: uri
+                  example: https://google.com
+      responses:
+        '201':
+          description: Short URL created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: string
+                    example: aB3d9f
+        '400':
+          description: Invalid request body or URL format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/urls/{id}:
+    put:
+      summary: Update the original destination of a short URL
+      operationId: updateShortURL
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The ID of the short URL to update (in this system, ID is often the short code)
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - url
+              properties:
+                url:
+                  type: string
+                  format: uri
+                  example: https://github.com
+      responses:
+        '200':
+          description: Short URL updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: updated
+        '400':
+          description: Invalid URL format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Short URL not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      summary: Delete a short URL
+      operationId: deleteShortURL
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The ID of the short URL to delete
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Short URL deleted successfully
+        '404':
+          description: Short URL not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /{code}:
+    get:
+      summary: Resolve short code and redirect to original URL
+      operationId: resolveShortURL
+      parameters:
+        - name: code
+          in: path
+          required: true
+          description: The short URL code
+          schema:
+            type: string
+      responses:
+        '302':
+          description: Redirect to original URL
+          headers:
+            Location:
+              schema:
+                type: string
+                format: uri
+              description: The destination URL
+        '404':
+          description: Short URL code not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          example: error message description
