@@ -11,15 +11,15 @@ import (
 	"github.com/hiiamhip/nanoflux/internal/domain"
 )
 
-type postgresRepo struct {
+type urlRepo struct {
 	db *pgxpool.Pool
 }
 
-func NewURLRepo(pool *pgxpool.Pool) *postgresRepo {
-	return &postgresRepo{db: pool}
+func NewURLRepo(pool *pgxpool.Pool) *urlRepo {
+	return &urlRepo{db: pool}
 }
 
-func (r *postgresRepo) Create(ctx context.Context, url *domain.URL) (string, error) {
+func (r *urlRepo) Create(ctx context.Context, url *domain.URL) (string, error) {
 	var shortCode string
 	err := r.db.QueryRow(ctx,
 		`INSERT INTO urls (id, original, short_code, created_at, updated_at) VALUES ($1,$2,$3,$4,$5)
@@ -33,7 +33,7 @@ func (r *postgresRepo) Create(ctx context.Context, url *domain.URL) (string, err
 	return shortCode, nil
 }
 
-func (r *postgresRepo) FindByShortCode(ctx context.Context, code string) (*domain.URL, error) {
+func (r *urlRepo) FindByShortCode(ctx context.Context, code string) (*domain.URL, error) {
 	var url domain.URL
 	err := r.db.QueryRow(ctx,
 		`SELECT id, original, short_code, created_at, updated_at FROM urls WHERE short_code = $1`,
@@ -48,7 +48,7 @@ func (r *postgresRepo) FindByShortCode(ctx context.Context, code string) (*domai
 	return &url, nil
 }
 
-func (r *postgresRepo) FindByID(ctx context.Context, id string) (*domain.URL, error) {
+func (r *urlRepo) FindByID(ctx context.Context, id string) (*domain.URL, error) {
 	var url domain.URL
 	err := r.db.QueryRow(ctx,
 		`SELECT id, original, short_code, created_at, updated_at FROM urls WHERE id = $1`,
@@ -63,7 +63,7 @@ func (r *postgresRepo) FindByID(ctx context.Context, id string) (*domain.URL, er
 	return &url, nil
 }
 
-func (r *postgresRepo) Update(ctx context.Context, url *domain.URL) error {
+func (r *urlRepo) Update(ctx context.Context, url *domain.URL) error {
 	_, err := r.db.Exec(ctx,
 		`UPDATE urls SET original = $1, updated_at = $2 WHERE id = $3`,
 		url.Original, url.UpdatedAt, url.ID,
@@ -74,7 +74,7 @@ func (r *postgresRepo) Update(ctx context.Context, url *domain.URL) error {
 	return nil
 }
 
-func (r *postgresRepo) Delete(ctx context.Context, id string) error {
+func (r *urlRepo) Delete(ctx context.Context, id string) error {
 	_, err := r.db.Exec(ctx, `DELETE FROM urls WHERE id = $1`, id)
 	if err != nil {
 		return fmt.Errorf("exec delete: %w", err)

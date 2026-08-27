@@ -31,7 +31,7 @@ func main() {
 	}
 
 	// adapter
-	repo := postgres.NewPostgresRepo(pool)
+	repo := postgres.NewURLRepo(pool)
 	gen := shortener.NewBase62()
 
 	// usecase
