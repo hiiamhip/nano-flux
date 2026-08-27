@@ -15,7 +15,7 @@ type postgresRepo struct {
 	db *pgxpool.Pool
 }
 
-func NewPostgresRepo(pool *pgxpool.Pool) *postgresRepo {
+func NewURLRepo(pool *pgxpool.Pool) *postgresRepo {
 	return &postgresRepo{db: pool}
 }
 

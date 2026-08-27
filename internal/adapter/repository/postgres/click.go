@@ -8,14 +8,14 @@ import (
 	"github.com/hiiamhip/nanoflux/internal/domain"
 )
 
-type ClickRepo struct {
+type clickRepo struct {
 	db *pgxpool.Pool
 }
 
-func NewClickRepo(pool *pgxpool.Pool) *ClickRepo {
-	return &ClickRepo{db: pool}
+func NewClickRepo(pool *pgxpool.Pool) *clickRepo {
+	return &clickRepo{db: pool}
 }
 
-func (r *ClickRepo) SaveBatch(ctx context.Context, clicks []*domain.Click) error {
+func (r *clickRepo) SaveBatch(ctx context.Context, clicks []*domain.Click) error {
 	return nil
 }
