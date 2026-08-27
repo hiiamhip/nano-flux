@@ -13,15 +13,17 @@ import (
 type URLService struct {
     repo      URLRepository
     shortener Shortener
+    tracker   ClickTracker
 }
 
-// NewURLService constructs a new service with its dependencies.
-func NewURLService(repo URLRepository, shortener Shortener) *URLService {
-    return &URLService{repo: repo, shortener: shortener}
+func NewURLService(repo URLRepository, shortener Shortener, tracker ClickTracker) *URLService {
+    return &URLService{
+        repo:      repo,
+        shortener: shortener,
+        tracker:   tracker,
+    }
 }
 
-// CreateShortURL validates the original URL, generates a short code, and persists the mapping.
-// If URL already exists, returns existing short code (upsert).
 func (s *URLService) CreateShortURL(ctx context.Context, original string) (string, error) {
 	parsed, err := url.Parse(original)
 	if err != nil || parsed.Scheme == "" || parsed.Host == "" ||
@@ -42,12 +44,23 @@ func (s *URLService) CreateShortURL(ctx context.Context, original string) (strin
     return s.repo.Create(ctx, url)
 }
 
-// ResolveURL fetches the original URL for a given short code.
-func (s *URLService) ResolveURL(ctx context.Context, code string) (string, error) {
+func (s *URLService) ResolveURL(ctx context.Context, code string, ip string, userAgent string) (string, error) {
 	url, err := s.repo.FindByShortCode(ctx, code)
 	if err != nil {
 		return "", fmt.Errorf("repo find: %w", err)
 	}
+
+	if s.tracker != nil {
+		click := &domain.Click{
+			ID:        uuid.NewString(),
+			ShortCode: code,
+			IPAddress: ip,
+			UserAgent: userAgent,
+			ClickedAt: time.Now().Unix(),
+		}
+		_ = s.tracker.Track(ctx, click)
+	}
+
 	return url.Original, nil
 }
 
