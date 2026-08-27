@@ -50,16 +50,14 @@ func (s *URLService) ResolveURL(ctx context.Context, code string, ip string, use
 		return "", fmt.Errorf("repo find: %w", err)
 	}
 
-	if s.tracker != nil {
-		click := &domain.Click{
-			ID:        uuid.NewString(),
-			ShortCode: code,
-			IPAddress: ip,
-			UserAgent: userAgent,
-			ClickedAt: time.Now().Unix(),
-		}
-		_ = s.tracker.Track(ctx, click)
-	}
+    click := &domain.Click{
+        ID:        uuid.NewString(),
+        ShortCode: code,
+        IPAddress: ip,
+        UserAgent: userAgent,
+        ClickedAt: time.Now().Unix(),
+    }
+    _ = s.tracker.Track(ctx, click)
 
 	return url.Original, nil
 }
