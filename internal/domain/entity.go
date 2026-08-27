@@ -7,3 +7,11 @@ type URL struct {
     CreatedAt  int64
     UpdatedAt  int64
 }
+
+type Click struct {
+    ID        string
+    ShortCode string
+    IPAddress string
+    UserAgent string
+    ClickedAt int64
+}
