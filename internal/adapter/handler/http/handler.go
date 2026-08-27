@@ -13,7 +13,7 @@ import (
 
 type URLService interface {
 	CreateShortURL(ctx context.Context, original string) (string, error)
-	ResolveURL(ctx context.Context, code string) (string, error)
+	ResolveURL(ctx context.Context, code string, ip string, userAgent string) (string, error)
 	UpdateURL(ctx context.Context, id, newOriginal string) error
 	DeleteURL(ctx context.Context, id string) error
 }
@@ -57,8 +57,10 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) Resolve(w http.ResponseWriter, r *http.Request) {
 	code := chi.URLParam(r, "code")
+	ip := r.RemoteAddr
+	userAgent := r.UserAgent()
 
-	original, err := h.svc.ResolveURL(r.Context(), code)
+	original, err := h.svc.ResolveURL(r.Context(), code, ip, userAgent)
 	if err != nil {
 		switch {
 		case errors.Is(err, domain.ErrNotFound):
