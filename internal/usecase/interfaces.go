@@ -22,3 +22,7 @@ type URLRepository interface {
 type Shortener interface {
     Generate(ctx context.Context, originalURL string) (string, error)
 }
+
+type ClickTracker interface {
+    Track(ctx context.Context, click *domain.Click) error
+}
