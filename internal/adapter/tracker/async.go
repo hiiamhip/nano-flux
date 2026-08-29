@@ -29,8 +29,45 @@ func NewAsyncTracker(saver BatchSaver, bufferCap int, batchSize int, flushInterv
         flushInterval: flushInterval,
     }
     t.wg.Add(1)
+    go t.worker()
     return t
 }
+
+func (t *AsyncTracker) worker() {
+    defer t.wg.Done()
+
+    ticker := time.NewTicker(t.flushInterval)
+    defer ticker.Stop()
+
+    batch := make([]*domain.Click, 0, t.batchSize)
+
+    for {
+        select {
+        case click, ok := <-t.events:
+            if !ok {
+                // Channel đã bị đóng và trong RAM đã hết sạch click!
+                // Flush mẻ cuối cùng còn sót trong mảng batch rồi thoát
+                if len(batch) > 0 {
+                    // flush batch
+                }
+                return
+            }
+
+            batch = append(batch, click)
+            if len(batch) >= t.batchSize {
+                // flush batch
+                batch = make([]*domain.Click, 0, t.batchSize)
+            }
+
+        case <-ticker.C:
+            if len(batch) > 0 {
+                // flush batch
+                batch = make([]*domain.Click, 0, t.batchSize)
+            }
+        }
+    }
+}
+
 
 func (t *AsyncTracker) Close() {
     close(t.events)
