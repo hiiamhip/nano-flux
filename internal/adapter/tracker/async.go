@@ -31,3 +31,8 @@ func NewAsyncTracker(saver BatchSaver, bufferCap int, batchSize int, flushInterv
     t.wg.Add(1)
     return t
 }
+
+func (t *AsyncTracker) Close() {
+    close(t.events)
+    t.wg.Wait()
+}
