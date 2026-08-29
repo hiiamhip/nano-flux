@@ -67,6 +67,17 @@ func (t *AsyncTracker) worker() {
     }
 }
 
+func (t *AsyncTracker) Track(ctx context.Context, click *domain.Click) error {
+    select {
+    case t.events <- click:
+        return nil
+    case <-ctx.Done():
+        return ctx.Err()
+    default:
+        return nil
+    }
+}
+
 
 func (t *AsyncTracker) Close() {
     close(t.events)
