@@ -18,6 +18,5 @@ type AsyncTracker struct {
     batchSize     int                // Số lượng gom tối đa (vd: 50)
     flushInterval time.Duration      // Thời gian gom tối đa (vd: 1 giây)
     wg            sync.WaitGroup     // Quản lý dừng worker an toàn
-    ctx           context.Context    // Context để báo worker dừng
     cancel        context.CancelFunc // Hàm kích hoạt dừng
 }
