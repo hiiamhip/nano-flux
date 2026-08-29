@@ -20,3 +20,14 @@ type AsyncTracker struct {
     wg            sync.WaitGroup     // Quản lý dừng worker an toàn
     cancel        context.CancelFunc // Hàm kích hoạt dừng
 }
+
+func NewAsyncTracker(saver BatchSaver, bufferCap int, batchSize int, flushInterval time.Duration) *AsyncTracker {
+    t := &AsyncTracker{
+        saver:         saver,
+        events:        make(chan *domain.Click, bufferCap),
+        batchSize:     batchSize,
+        flushInterval: flushInterval,
+    }
+    t.wg.Add(1)
+    return t
+}
