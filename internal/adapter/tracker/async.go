@@ -2,6 +2,7 @@ package tracker
 
 import (
 	"context"
+	"log"
 	"sync"
 	"time"
 
@@ -44,26 +45,33 @@ func (t *AsyncTracker) worker() {
         select {
         case click, ok := <-t.events:
             if !ok {
-                // Channel đã bị đóng và trong RAM đã hết sạch click!
-                // Flush mẻ cuối cùng còn sót trong mảng batch rồi thoát
                 if len(batch) > 0 {
-                    // flush batch
+                    t.flush(batch)
                 }
                 return
             }
 
             batch = append(batch, click)
             if len(batch) >= t.batchSize {
-                // flush batch
+                t.flush(batch)
                 batch = make([]*domain.Click, 0, t.batchSize)
             }
 
         case <-ticker.C:
             if len(batch) > 0 {
-                // flush batch
+                t.flush(batch)
                 batch = make([]*domain.Click, 0, t.batchSize)
             }
         }
+    }
+}
+
+func (t *AsyncTracker) flush(batch []*domain.Click) {
+    ctx, cancel := context.WithTimeout(context.Background(), 5 * time.Second)
+    defer cancel()
+
+    if err := t.saver.SaveBatch(ctx, batch); err != nil {
+        log.Printf("async tracker flush error: %v", err)
     }
 }
 
