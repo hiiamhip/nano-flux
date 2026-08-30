@@ -13,6 +13,7 @@ import (
 	httpapi "github.com/hiiamhip/nanoflux/internal/adapter/handler/http"
 	"github.com/hiiamhip/nanoflux/internal/adapter/repository/postgres"
 	"github.com/hiiamhip/nanoflux/internal/adapter/shortener"
+	"github.com/hiiamhip/nanoflux/internal/adapter/tracker"
 	"github.com/hiiamhip/nanoflux/internal/config"
 	"github.com/hiiamhip/nanoflux/internal/usecase"
 )
@@ -25,17 +26,22 @@ func main() {
 
 	ctx := context.Background()
 
+	// pool
 	pool, err := postgres.NewPool(ctx, cfg.DatabaseURL)
 	if err != nil {
 		log.Fatalf("connect db: %v", err)
 	}
 
 	// adapter
-	repo := postgres.NewURLRepo(pool)
+	// repo
+	urlRepo := postgres.NewURLRepo(pool)
+	clickRepo :=postgres.NewClickRepo(pool)
+
+	clickTracker := tracker.NewAsyncTracker(clickRepo, 1000, 50, time.Second)
 	gen := shortener.NewBase62()
 
 	// usecase
-	svc := usecase.NewURLService(repo, gen)
+	svc := usecase.NewURLService(urlRepo, gen, clickTracker)
 
 	// handler
 	h := httpapi.NewHandler(svc)
@@ -67,6 +73,7 @@ func main() {
 		log.Fatalf("server forced to shutdown: %v", err)
 	}
 
+	clickTracker.Close()
 	pool.Close()
 	log.Println("server exited gracefully")
 }
