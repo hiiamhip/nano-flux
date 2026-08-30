@@ -14,10 +14,10 @@ import (
 )
 
 type mockService struct {
-	createFunc   func(ctx context.Context, original string) (string, error)
-	resolveFunc  func(ctx context.Context, code string) (string, error)
-	updateFunc   func(ctx context.Context, id, newOriginal string) error
-	deleteFunc   func(ctx context.Context, id string) error
+	createFunc  func(ctx context.Context, original string) (string, error)
+	resolveFunc func(ctx context.Context, code, ip, userAgent string) (string, error)
+	updateFunc  func(ctx context.Context, id, newOriginal string) error
+	deleteFunc  func(ctx context.Context, id string) error
 }
 
 func (m *mockService) CreateShortURL(ctx context.Context, original string) (string, error) {
@@ -27,9 +27,9 @@ func (m *mockService) CreateShortURL(ctx context.Context, original string) (stri
 	return "", nil
 }
 
-func (m *mockService) ResolveURL(ctx context.Context, code string) (string, error) {
+func (m *mockService) ResolveURL(ctx context.Context, code, ip, userAgent string) (string, error) {
 	if m.resolveFunc != nil {
-		return m.resolveFunc(ctx, code)
+		return m.resolveFunc(ctx, code, ip, userAgent)
 	}
 	return "", nil
 }
@@ -50,16 +50,16 @@ func (m *mockService) DeleteURL(ctx context.Context, id string) error {
 
 func TestHandler_Create(t *testing.T) {
 	tests := []struct {
-		name           string
-		body           string
-		setup          func(*mockService)
-		wantStatus     int
-		wantCode       string
-		wantError      string
+		name       string
+		body       string
+		setup      func(*mockService)
+		wantStatus int
+		wantCode   string
+		wantError  string
 	}{
 		{
-			name:   "success",
-			body:   `{"url": "https://example.com"}`,
+			name: "success",
+			body: `{"url": "https://example.com"}`,
 			setup: func(m *mockService) {
 				m.createFunc = func(ctx context.Context, original string) (string, error) {
 					return "abc123", nil
@@ -69,15 +69,15 @@ func TestHandler_Create(t *testing.T) {
 			wantCode:   "abc123",
 		},
 		{
-			name:   "invalid json",
-			body:   `invalid`,
-			setup:  func(m *mockService) {},
+			name:       "invalid json",
+			body:       `invalid`,
+			setup:      func(m *mockService) {},
 			wantStatus: http.StatusBadRequest,
-			wantError: "invalid json body",
+			wantError:  "invalid json body",
 		},
 		{
-			name:   "missing url field",
-			body:   `{}`,
+			name: "missing url field",
+			body: `{}`,
 			setup: func(m *mockService) {
 				m.createFunc = func(ctx context.Context, original string) (string, error) {
 					if original == "" {
@@ -90,26 +90,26 @@ func TestHandler_Create(t *testing.T) {
 			wantError:  "invalid url",
 		},
 		{
-			name:   "invalid url",
-			body:   `{"url": "not-a-url"}`,
+			name: "invalid url",
+			body: `{"url": "not-a-url"}`,
 			setup: func(m *mockService) {
 				m.createFunc = func(ctx context.Context, original string) (string, error) {
 					return "", domain.ErrInvalidURL
 				}
 			},
 			wantStatus: http.StatusBadRequest,
-			wantError: "invalid url",
+			wantError:  "invalid url",
 		},
 		{
-			name:   "internal error",
-			body:   `{"url": "https://example.com"}`,
+			name: "internal error",
+			body: `{"url": "https://example.com"}`,
 			setup: func(m *mockService) {
 				m.createFunc = func(ctx context.Context, original string) (string, error) {
 					return "", errors.New("db error")
 				}
 			},
 			wantStatus: http.StatusInternalServerError,
-			wantError: "internal error",
+			wantError:  "internal error",
 		},
 	}
 
@@ -161,7 +161,7 @@ func TestHandler_Resolve(t *testing.T) {
 			name: "success",
 			code: "abc123",
 			setup: func(m *mockService) {
-				m.resolveFunc = func(ctx context.Context, code string) (string, error) {
+				m.resolveFunc = func(ctx context.Context, code, ip, userAgent string) (string, error) {
 					return "https://example.com", nil
 				}
 			},
@@ -172,7 +172,7 @@ func TestHandler_Resolve(t *testing.T) {
 			name: "not found",
 			code: "nonexistent",
 			setup: func(m *mockService) {
-				m.resolveFunc = func(ctx context.Context, code string) (string, error) {
+				m.resolveFunc = func(ctx context.Context, code, ip, userAgent string) (string, error) {
 					return "", domain.ErrNotFound
 				}
 			},
@@ -182,7 +182,7 @@ func TestHandler_Resolve(t *testing.T) {
 			name: "internal error",
 			code: "abc123",
 			setup: func(m *mockService) {
-				m.resolveFunc = func(ctx context.Context, code string) (string, error) {
+				m.resolveFunc = func(ctx context.Context, code, ip, userAgent string) (string, error) {
 					return "", errors.New("db error")
 				}
 			},
@@ -239,10 +239,10 @@ func TestHandler_Update(t *testing.T) {
 			wantStatus: http.StatusOK,
 		},
 		{
-			name: "invalid json",
-			id:   "url-id-1",
-			body: `invalid`,
-			setup: func(m *mockService) {},
+			name:       "invalid json",
+			id:         "url-id-1",
+			body:       `invalid`,
+			setup:      func(m *mockService) {},
 			wantStatus: http.StatusBadRequest,
 		},
 		{
@@ -312,7 +312,7 @@ func TestHandler_Delete(t *testing.T) {
 	}{
 		{
 			name: "success",
-			id: "url-id-1",
+			id:   "url-id-1",
 			setup: func(m *mockService) {
 				m.deleteFunc = func(ctx context.Context, id string) error {
 					return nil
@@ -322,7 +322,7 @@ func TestHandler_Delete(t *testing.T) {
 		},
 		{
 			name: "not found",
-			id: "nonexistent",
+			id:   "nonexistent",
 			setup: func(m *mockService) {
 				m.deleteFunc = func(ctx context.Context, id string) error {
 					return domain.ErrNotFound
@@ -332,7 +332,7 @@ func TestHandler_Delete(t *testing.T) {
 		},
 		{
 			name: "internal error",
-			id: "url-id-1",
+			id:   "url-id-1",
 			setup: func(m *mockService) {
 				m.deleteFunc = func(ctx context.Context, id string) error {
 					return errors.New("db error")
@@ -358,7 +358,7 @@ func TestHandler_Delete(t *testing.T) {
 			r.ServeHTTP(w, req)
 
 			if w.Code != tt.wantStatus {
-				t.Errorf("status = %d, want %d, body: %s", w.Code, tt.wantStatus, w.Body.String())
+				t.Errorf("status = %d, want %d", w.Code, tt.wantStatus)
 			}
 		})
 	}

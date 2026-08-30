@@ -5,13 +5,13 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/hiiamhip/nanoflux/internal/domain"
 	"github.com/google/uuid"
+	"github.com/hiiamhip/nanoflux/internal/domain"
 )
 
 type mockRepo struct {
-	urls        map[string]*domain.URL
-	createFunc  func(ctx context.Context, url *domain.URL) (string, error)
+	urls       map[string]*domain.URL
+	createFunc func(ctx context.Context, url *domain.URL) (string, error)
 }
 
 func newMockRepo() *mockRepo {
@@ -81,12 +81,24 @@ func (m *mockShortener) Generate(ctx context.Context, originalURL string) (strin
 	return "", nil
 }
 
+type mockTracker struct {
+	trackFunc func(ctx context.Context, click *domain.Click) error
+}
+
+func (m *mockTracker) Track(ctx context.Context, click *domain.Click) error {
+	if m.trackFunc != nil {
+		return m.trackFunc(ctx, click)
+	}
+	return nil
+}
+
 func TestURLService_CreateShortURL_Success(t *testing.T) {
 	repo := newMockRepo()
 	shortener := &mockShortener{genFunc: func(ctx context.Context, originalURL string) (string, error) {
 		return "abc123", nil
 	}}
-	svc := NewURLService(repo, shortener)
+	tracker := &mockTracker{}
+	svc := NewURLService(repo, shortener, tracker)
 
 	code, err := svc.CreateShortURL(context.Background(), "https://example.com")
 	if err != nil {
@@ -107,7 +119,8 @@ func TestURLService_CreateShortURL_InvalidURL(t *testing.T) {
 	shortener := &mockShortener{genFunc: func(ctx context.Context, originalURL string) (string, error) {
 		return "abc123", nil
 	}}
-	svc := NewURLService(repo, shortener)
+	tracker := &mockTracker{}
+	svc := NewURLService(repo, shortener, tracker)
 
 	_, err := svc.CreateShortURL(context.Background(), "not-a-url")
 	if !errors.Is(err, domain.ErrInvalidURL) {
@@ -125,7 +138,8 @@ func TestURLService_CreateShortURL_ShortenerError(t *testing.T) {
 	shortener := &mockShortener{genFunc: func(ctx context.Context, originalURL string) (string, error) {
 		return "", errors.New("shortener failed")
 	}}
-	svc := NewURLService(repo, shortener)
+	tracker := &mockTracker{}
+	svc := NewURLService(repo, shortener, tracker)
 
 	_, err := svc.CreateShortURL(context.Background(), "https://example.com")
 	if err == nil {
@@ -138,7 +152,8 @@ func TestURLService_CreateShortURL_DuplicateOriginalReturnsExistingCode(t *testi
 	shortener := &mockShortener{genFunc: func(ctx context.Context, originalURL string) (string, error) {
 		return "abc123", nil
 	}}
-	svc := NewURLService(repo, shortener)
+	tracker := &mockTracker{}
+	svc := NewURLService(repo, shortener, tracker)
 
 	// First call
 	code1, err := svc.CreateShortURL(context.Background(), "https://example.com")
@@ -166,24 +181,39 @@ func TestURLService_ResolveURL_Success(t *testing.T) {
 	}
 	repo.urls["abc123"] = url
 
+	var trackedClick *domain.Click
+	tracker := &mockTracker{
+		trackFunc: func(ctx context.Context, click *domain.Click) error {
+			trackedClick = click
+			return nil
+		},
+	}
 	shortener := &mockShortener{}
-	svc := NewURLService(repo, shortener)
+	svc := NewURLService(repo, shortener, tracker)
 
-	original, err := svc.ResolveURL(context.Background(), "abc123")
+	original, err := svc.ResolveURL(context.Background(), "abc123", "192.168.1.1", "Mozilla/5.0")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if original != "https://example.com" {
 		t.Fatalf("expected original URL, got %s", original)
 	}
+
+	if trackedClick == nil {
+		t.Fatal("expected click to be tracked")
+	}
+	if trackedClick.ShortCode != "abc123" || trackedClick.IPAddress != "192.168.1.1" || trackedClick.UserAgent != "Mozilla/5.0" {
+		t.Fatalf("tracked click mismatch: %+v", trackedClick)
+	}
 }
 
 func TestURLService_ResolveURL_NotFound(t *testing.T) {
 	repo := newMockRepo()
 	shortener := &mockShortener{}
-	svc := NewURLService(repo, shortener)
+	tracker := &mockTracker{}
+	svc := NewURLService(repo, shortener, tracker)
 
-	_, err := svc.ResolveURL(context.Background(), "nonexistent")
+	_, err := svc.ResolveURL(context.Background(), "nonexistent", "127.0.0.1", "curl/7.68.0")
 	if !errors.Is(err, domain.ErrNotFound) {
 		t.Fatalf("expected ErrNotFound, got %v", err)
 	}
@@ -199,7 +229,8 @@ func TestURLService_UpdateURL_Success(t *testing.T) {
 	repo.urls["abc123"] = url
 
 	shortener := &mockShortener{}
-	svc := NewURLService(repo, shortener)
+	tracker := &mockTracker{}
+	svc := NewURLService(repo, shortener, tracker)
 
 	err := svc.UpdateURL(context.Background(), url.ID, "https://new.com")
 	if err != nil {
@@ -215,7 +246,8 @@ func TestURLService_UpdateURL_Success(t *testing.T) {
 func TestURLService_UpdateURL_NotFound(t *testing.T) {
 	repo := newMockRepo()
 	shortener := &mockShortener{}
-	svc := NewURLService(repo, shortener)
+	tracker := &mockTracker{}
+	svc := NewURLService(repo, shortener, tracker)
 
 	err := svc.UpdateURL(context.Background(), "nonexistent", "https://new.com")
 	if !errors.Is(err, domain.ErrNotFound) {
@@ -226,7 +258,8 @@ func TestURLService_UpdateURL_NotFound(t *testing.T) {
 func TestURLService_UpdateURL_InvalidURL(t *testing.T) {
 	repo := newMockRepo()
 	shortener := &mockShortener{}
-	svc := NewURLService(repo, shortener)
+	tracker := &mockTracker{}
+	svc := NewURLService(repo, shortener, tracker)
 
 	err := svc.UpdateURL(context.Background(), "some-id", "")
 	if !errors.Is(err, domain.ErrInvalidURL) {
@@ -244,7 +277,8 @@ func TestURLService_DeleteURL_Success(t *testing.T) {
 	repo.urls["abc123"] = url
 
 	shortener := &mockShortener{}
-	svc := NewURLService(repo, shortener)
+	tracker := &mockTracker{}
+	svc := NewURLService(repo, shortener, tracker)
 
 	err := svc.DeleteURL(context.Background(), url.ID)
 	if err != nil {
@@ -259,7 +293,8 @@ func TestURLService_DeleteURL_Success(t *testing.T) {
 func TestURLService_DeleteURL_NotFound(t *testing.T) {
 	repo := newMockRepo()
 	shortener := &mockShortener{}
-	svc := NewURLService(repo, shortener)
+	tracker := &mockTracker{}
+	svc := NewURLService(repo, shortener, tracker)
 
 	err := svc.DeleteURL(context.Background(), "nonexistent")
 	if !errors.Is(err, domain.ErrNotFound) {
