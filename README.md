@@ -6,7 +6,7 @@ A lightweight URL shortener and asynchronous click tracking pipeline built with 
 
 ---
 
-## 🎯 What is Nanoflux?
+## Overview
 
 Nanoflux provides core URL shortening capabilities paired with a high-throughput, decoupled click tracking pipeline:
 
@@ -17,7 +17,7 @@ Nanoflux provides core URL shortening capabilities paired with a high-throughput
 
 ---
 
-## 🏗️ Architecture & Layout
+## Architecture & Layout
 
 The project follows Clean Architecture (Hexagonal) conventions, keeping domain rules independent of external frameworks or databases:
 
@@ -49,7 +49,7 @@ nano-flux/
 
 ---
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
 - Go 1.22+
@@ -79,7 +79,7 @@ The server will start listening on `:8080` (or the configured `PORT`).
 
 ---
 
-## 📡 API Endpoints
+## API Endpoints
 
 | Method | Path | Description |
 | :--- | :--- | :--- |
@@ -108,7 +108,7 @@ curl -X POST http://localhost:8080/api/urls \
 
 ---
 
-## 🧪 Testing
+## Testing
 
 Run unit and race detection tests:
 ```bash
@@ -119,9 +119,3 @@ Generate coverage report:
 ```bash
 make test-coverage
 ```
-
----
-
-## 📜 License
-
-MIT
